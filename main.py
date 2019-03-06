@@ -9,7 +9,7 @@ import models
 
 from train import train
 from evaluate import evaluate
-from datasets import TaskDataset
+from dataset import TaskDataset
 
 parser = argparse.ArgumentParser(description='Text Classification')
 
@@ -28,6 +28,7 @@ parser.add_argument('--data_dir',       type=str,   default='data/')
 parser.add_argument('--run_dir',        type=str,   default='run/')
 # model
 parser.add_argument('--model',          type=str,   default='BiLSTM')
+parser.add_argument('--vocab_size',     type=int,   default=10000)
 parser.add_argument('--d_feature',      type=int,   default=300)
 parser.add_argument('--d_hidden',       type=int,   default=500)
 parser.add_argument('--n_layers',       type=int,   default=1)

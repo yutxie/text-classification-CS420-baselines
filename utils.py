@@ -2,9 +2,12 @@ import os
 import codecs
 import logging as log
 
+from collections import defaultdict
+
 import torch
 
 from nltk.tokenize import word_tokenize
+from sklearn.feature_extraction.text import TfidfVectorizer
 
 
 def sent_tokenize(sent):
@@ -16,43 +19,31 @@ def sent_tokenize(sent):
         return [SOS_TOK] + sent + [EOS_TOK]
 
 
-# def _build_vocab(args, tasks):
-#     ''' Build vocabulary from scratch, reading data from tasks. '''
-#     log.info("\tBuilding vocab from scratch")
-#     max_v_sizes = {
-#         'word': args.max_word_v_size,
-#         'char': args.max_char_v_size,
-#     }
+def build_vocab(corpus, vocab_size):
+    log.info("Starting to build vocab")
 
-#     # count words
-#     word2freq, char2freq = defaultdict(int), defaultdict(int)
-#     for task in tasks:
-#         log.info("\tCounting words for task: '%s'", task.name)
-#         for sentence in task.train_data_text[0] + task.test_data_text[0]:
-#             for word in sentence:
-#                 word2freq[word] += 1
-#                 for char in list(word):
-#                     char2freq[char] += 1
-#             return
-#     log.info("\tFinished counting words")
+    # count words
+    word2freq = defaultdict(int)
+    for sent in corpus:
+        for word in sent:
+            word2freq[word] += 1
+    log.info("Finished counting words")
 
-#     # build vocab
-#     vocab = Vocabulary(counter=None, max_vocab_size=max_v_sizes)
-#     for special in SPECIALS:
-#         vocab.add_token_to_namespace(special, 'tokens')
+    # build vocab
+    words_by_freq = [(word, freq) for word, freq in word2freq.items()]
+    words_by_freq.sort(key=lambda x: x[1], reverse=True)
+    vocab_size = min(vocab_size, len(words_by_freq))
+    vocab = [word for word, _ in words_by_freq[:vocab_size]]
+    word2idx = {word: idx for idx, word in enumerate(vocab)}
 
-#     words_by_freq = [(word, freq) for word, freq in word2freq.items()]
-#     words_by_freq.sort(key=lambda x: x[1], reverse=True)
-#     for word, _ in words_by_freq[:max_v_sizes['word']]:
-#         vocab.add_token_to_namespace(word, 'tokens')
+    log.info("Finished building a vocab of size %i" % vocab_size)
+    return vocab, word2idx
 
-#     chars_by_freq = [(char, freq) for char, freq in char2freq.items()]
-#     chars_by_freq.sort(key=lambda x: x[1], reverse=True)
-#     for char, _ in chars_by_freq[:max_v_sizes['char']]:
-#         vocab.add_token_to_namespace(char, 'chars')
-
-#     # save vocab
-#     vocab_path = os.path.join(args.pre_dir + 'vocab')
-#     vocab.save_to_files(vocab_path)
-#     log.info("\tSaved vocab to %s", vocab_path)
-#     return vocab
+def calc_tfidf_matrix(corpus, max_features):
+    tfidf = TfidfVectorizer(
+        max_df=.999, min_df=.001, 
+        max_features=max_features, stop_words='english')
+    mat = tfidf.fit_transform(corpus)
+    word_list = tfidf.get_feature_names()
+    log.info("Finished building a word list of size %i" % len(word_list))
+    return mat, word_list
