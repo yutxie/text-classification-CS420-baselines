@@ -36,11 +36,12 @@ class BiLSTM(nn.Module):
             x: [[word0, word1, ...], [...], ...]
             task_idx: int
         '''
-        batch_size = x.shape[0]
+        batch_size = len(x)
         idxs = [[
             self.word2idx[word] for word in sent
             ] for sent in x
         ]
+        print(idxs)
 
         x = self.embedding(torch.tensor(idxs, dtype=torch.long))    # batch_size x d_feature
         x, (h_n, c_n) = self.bilstm(x)                              # n_layers * 2 x batch_size x d_hidden

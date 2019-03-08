@@ -11,50 +11,43 @@ from tensorboardX import SummaryWriter
 from evaluate import evaluate
 
 
-def train(args, model, mtl_dataset):
+def train(args, model, task):
 
     writer = SummaryWriter(os.path.join(args.run_dir, 'tensorboard'))
     optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=args.lr)
+    log.info('Start to train')
 
     n_passes = 0
     for epoch in range(args.n_epochs):
 
-        data_loaders = [
-            DataLoader(
-                task.train_set,
-                args.batch_size,
-                shuffle=True,
-                collate_fn=task.collate_fn
-            ) for task in mtl_dataset.tasks
-        ]
-        batches = sum([[(
-            task_idx, batch
-            ) for batch in data_loader
-            ] for task_idx, data_loader in enumerate(data_loaders)
-        ])
+        data_loader = DataLoader(
+            task.train_set,
+            args.batch_size,
+            shuffle=True,
+            collate_fn=task.collate_fn
+        )
 
-        for task_idx, batch in batches:
+        for batch in data_loader:
             inputs, targs = batch
-            inputs = inputs.to(args.device)
+            # inputs = inputs.to(args.device)
             targs = targs.to(args.device)
 
             model.train()
-            preds = model(inputs, task_idx)
+            preds = model(inputs)
             optimizer.zero_grad()
             loss = F.cross_entropy(preds, targs)
             loss.backward()
             optimizer.step()
 
-            train_set = mtl_dataset.tasks[task_idx].train_set
-            trainset.metrics_count(preds, targs)
+            task.train_set.metrics_count(preds, targs)
             n_passes += 1
 
             # log train
-            if n_passes % args.log_train == 0:
-                metrics = train_set.metrics_report(reset=True)
+            if n_passes % args.log_every == 0:
+                metrics = task.train_set.metrics_report(reset=True)
                 metrics += [('loss', loss.item())]
                 writer.add_scalars('train', dict(metrics), n_passes)
-                log.info('Epoch #%i train: %s' % (epoch, str(metrics)))
+                log.info('Pass #%i train: %s' % (n_passes, str(metrics)))
 
             # save model
             if n_passes % args.save_every == 0:
@@ -62,4 +55,6 @@ def train(args, model, mtl_dataset):
 
             # evaluate
             if n_passes % args.eval_every == 0:
-                evaluate(args, model, mtl_dataset, tensorboard_writer=writer, n_passes=n_passes)
+                evaluate(args, model, task, tensorboard_writer=writer, n_passes=n_passes)
+
+    log.info('Finished training')

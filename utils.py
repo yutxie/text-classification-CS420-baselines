@@ -4,23 +4,22 @@ import logging as log
 
 from collections import defaultdict
 
+import jieba
 import torch
 
-from nltk.tokenize import word_tokenize
-from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.feature_extraction.text import CountVectorizer, TfidfTransformer
 
-
-def sent_tokenize(sent):
-    SOS_TOK, EOS_TOK = "<SOS>", "<EOS>"
+def sent_tokenize(sent, se=False):
+    SOS_TOK, EOS_TOK = '<SOS>', '<EOS>'
     if isinstance(sent, str):
-        return [SOS_TOK] + word_tokenize(sent) + [EOS_TOK]
+        sent = jieba.lcut(sent)
     elif isinstance(sent, list):
         assert isinstance(sent[0], str), "Invalid sentence found!"
-        return [SOS_TOK] + sent + [EOS_TOK]
-
+    if se: sent = [SOS_TOK] + sent + [EOS_TOK]
+    return sent
 
 def build_vocab(corpus, vocab_size):
-    log.info("Starting to build vocab")
+    log.info("Start to build vocab")
 
     # count words
     word2freq = defaultdict(int)
@@ -39,11 +38,17 @@ def build_vocab(corpus, vocab_size):
     log.info("Finished building a vocab of size %i" % vocab_size)
     return vocab, word2idx
 
-def calc_tfidf_matrix(corpus, max_features):
-    tfidf = TfidfVectorizer(
-        max_df=.999, min_df=.001, 
-        max_features=max_features, stop_words='english')
-    mat = tfidf.fit_transform(corpus)
-    word_list = tfidf.get_feature_names()
+def calc_tfidf_matrix(corpus, max_features, stop_words='english'):
+    corpus = [' '.join(sent) for sent in corpus]
+    vectorizer = CountVectorizer(
+        # max_df= .999,
+        # min_df = .001,
+        max_features=max_features
+    )
+    transformer = TfidfTransformer()
+    tfidf = transformer.fit_transform(
+        vectorizer.fit_transform(corpus)
+    )
+    word_list = vectorizer.get_feature_names()
     log.info("Finished building a word list of size %i" % len(word_list))
-    return mat, word_list
+    return tfidf, word_list
