@@ -10,16 +10,17 @@ class BiLSTM(nn.Module):
     def __init__(self, args, task):
         super().__init__()
         self.vocab = task.vocab
-        self.word2idx = task.word2idx
 
         self.embedding = nn.Embedding(
             len(self.vocab),
-            args.d_feature
+            args.d_feature,
+            _weight=self.vocab.vectors
         )
         self.bilstm = nn.LSTM(
             args.d_feature,
             args.d_hidden,
             args.n_layers,
+            batch_first=True,
             bidirectional=True
         )
         self.output = nn.Linear(
@@ -27,24 +28,19 @@ class BiLSTM(nn.Module):
             task.n_classes
         )
 
-    def init_embedding(self, weights):
-        pass
+        self.device = args.device
+        self.to(self.device)
 
     def forward(self, x):
         '''
         inputs:
-            x: [[word0, word1, ...], [...], ...]
+            x: batch_size x seq_len
             task_idx: int
         '''
-        batch_size = len(x)
-        idxs = [[
-            self.word2idx[word] for word in sent
-            ] for sent in x
-        ]
-        print(idxs)
-
-        x = self.embedding(torch.tensor(idxs, dtype=torch.long))    # batch_size x d_feature
-        x, (h_n, c_n) = self.bilstm(x)                              # n_layers * 2 x batch_size x d_hidden
-        h_n = h_n.transpose(0, 1).view(batch_size, -1)              # batch_size x d_hidden * n_layers * 2
-        x = self.output(h_n)                             # batch_size x n_classes
-        return F.sigmoid(x)                                         # batch_size x n_classes
+        x.to(self.device)
+        batch_size = x.shape[0]
+        x = self.embedding(x)
+        x, (h_n, c_n) = self.bilstm(x)  # n_layers * 2 x batch_size x d_hidden
+        h_n = h_n.transpose(0, 1).contiguous().view(batch_size, -1) # batch_size x d_hidden * n_layers * 2
+        x = self.output(h_n)    # batch_size x n_classes
+        return torch.sigmoid(x) # batch_size x n_classes

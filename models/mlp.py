@@ -16,7 +16,12 @@ class MLP(nn.Module):
         )
         self.output = nn.Linear(args.d_hidden, task.n_classes)
 
+        self.device = args.device
+        self.to(self.device)
+
     def forward(self, x):
+        x.to(self.device)
+
         x = self.linears(x)             # batch_size x d_hidden
         x = self.output(x)   # batch_size x n_classes
         return F.sigmoid(x)             # batch_size x n_classes

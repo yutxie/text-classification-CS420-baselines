@@ -7,7 +7,7 @@ class CategoricalAccuracy():
     Categorical Top-K accuracy. Assumes integer labels, with
     each item to be classified having a single correct class.
     Tie break enables equal distribution of scores among the
-    classes with same maximum predicted scores.
+    classes with same maximum predsicted scores.
     """
     def __init__(self, top_k: int = 1, tie_break: bool = False) -> None:
         if top_k > 1 and tie_break:
@@ -21,53 +21,53 @@ class CategoricalAccuracy():
         self.total_count = 0.
 
     def __call__(self,
-                 predictions: torch.Tensor,
+                 predsictions: torch.Tensor,
                  gold_labels: torch.Tensor,
                 #  mask: Optional[torch.Tensor] = None):
                  mask=None):
         """
         Parameters
         ----------
-        predictions : ``torch.Tensor``, required.
-            A tensor of predictions of shape (batch_size, ..., num_classes).
+        predsictions : ``torch.Tensor``, required.
+            A tensor of predsictions of shape (batch_size, ..., num_classes).
         gold_labels : ``torch.Tensor``, required.
             A tensor of integer class label of shape (batch_size, ...). It must be the same
-            shape as the ``predictions`` tensor without the ``num_classes`` dimension.
+            shape as the ``predsictions`` tensor without the ``num_classes`` dimension.
         mask: ``torch.Tensor``, optional (default = None).
             A masking tensor the same size as ``gold_labels``.
         """
-        # predictions, gold_labels, mask = self.unwrap_to_tensors(predictions, gold_labels, mask)
+        # predsictions, gold_labels, mask = self.unwrap_to_tensors(predsictions, gold_labels, mask)
 
         # Some sanity checks.
-        num_classes = predictions.size(-1)
-        if gold_labels.dim() != predictions.dim() - 1:
-            raise ValueError("gold_labels must have dimension == predictions.size() - 1 but "
-                                     "found tensor of shape: {}".format(predictions.size()))
+        num_classes = predsictions.size(-1)
+        if gold_labels.dim() != predsictions.dim() - 1:
+            raise ValueError("gold_labels must have dimension == predsictions.size() - 1 but "
+                                     "found tensor of shape: {}".format(predsictions.size()))
         if (gold_labels >= num_classes).any():
             raise ValueError("A gold label passed to Categorical Accuracy contains an id >= {}, "
                                      "the number of classes.".format(num_classes))
 
-        predictions = predictions.view((-1, num_classes))
+        predsictions = predsictions.view((-1, num_classes))
         gold_labels = gold_labels.view(-1).long()
         if not self._tie_break:
-            # Top K indexes of the predictions (or fewer, if there aren't K of them).
+            # Top K indexes of the predsictions (or fewer, if there aren't K of them).
             # Special case topk == 1, because it's common and .max() is much faster than .topk().
             if self._top_k == 1:
-                top_k = predictions.max(-1)[1].unsqueeze(-1)
+                top_k = predsictions.max(-1)[1].unsqueeze(-1)
             else:
-                top_k = predictions.topk(min(self._top_k, predictions.shape[-1]), -1)[1]
+                top_k = predsictions.topk(min(self._top_k, predsictions.shape[-1]), -1)[1]
 
             # This is of shape (batch_size, ..., top_k).
             correct = top_k.eq(gold_labels.unsqueeze(-1)).float()
         else:
-            # prediction is correct if gold label falls on any of the max scores. distribute score by tie_counts
-            max_predictions = predictions.max(-1)[0]
-            max_predictions_mask = predictions.eq(max_predictions.unsqueeze(-1))
-            # max_predictions_mask is (rows X num_classes) and gold_labels is (batch_size)
-            # ith entry in gold_labels points to index (0-num_classes) for ith row in max_predictions
+            # predsiction is correct if gold label falls on any of the max scores. distribute score by tie_counts
+            max_predsictions = predsictions.max(-1)[0]
+            max_predsictions_mask = predsictions.eq(max_predsictions.unsqueeze(-1))
+            # max_predsictions_mask is (rows X num_classes) and gold_labels is (batch_size)
+            # ith entry in gold_labels points to index (0-num_classes) for ith row in max_predsictions
             # For each row check if index pointed by gold_label is was 1 or not (among max scored classes)
-            correct = max_predictions_mask[torch.arange(gold_labels.numel()).long(), gold_labels].float()
-            tie_counts = max_predictions_mask.sum(-1)
+            correct = max_predsictions_mask[torch.arange(gold_labels.numel()).long(), gold_labels].float()
+            tie_counts = max_predsictions_mask.sum(-1)
             correct /= tie_counts.float()
             correct.unsqueeze_(-1)
 
@@ -113,24 +113,24 @@ class F1Measure():
         self._false_negatives = 0.0
 
     def __call__(self,
-                 predictions: torch.Tensor,
+                 predsictions: torch.Tensor,
                  gold_labels: torch.Tensor,
                 #  mask: Optional[torch.Tensor] = None):
                  mask=None):
         """
         Parameters
         ----------
-        predictions : ``torch.Tensor``, required.
-            A tensor of predictions of shape (batch_size, ..., num_classes).
+        predsictions : ``torch.Tensor``, required.
+            A tensor of predsictions of shape (batch_size, ..., num_classes).
         gold_labels : ``torch.Tensor``, required.
             A tensor of integer class label of shape (batch_size, ...). It must be the same
-            shape as the ``predictions`` tensor without the ``num_classes`` dimension.
+            shape as the ``predsictions`` tensor without the ``num_classes`` dimension.
         mask: ``torch.Tensor``, optional (default = None).
             A masking tensor the same size as ``gold_labels``.
         """
-        # predictions, gold_labels, mask = self.unwrap_to_tensors(predictions, gold_labels, mask)
+        # predsictions, gold_labels, mask = self.unwrap_to_tensors(predsictions, gold_labels, mask)
 
-        num_classes = predictions.size(-1)
+        num_classes = predsictions.size(-1)
         if (gold_labels >= num_classes).any():
             raise ValueError("A gold label passed to F1Measure contains an id >= {}, "
                                      "the number of classes.".format(num_classes))
@@ -141,27 +141,27 @@ class F1Measure():
         positive_label_mask = gold_labels.eq(self._positive_label).float()
         negative_label_mask = 1.0 - positive_label_mask
 
-        argmax_predictions = predictions.max(-1)[1].float().squeeze(-1)
+        argmax_predsictions = predsictions.max(-1)[1].float().squeeze(-1)
 
-        # True Negatives: correct non-positive predictions.
-        correct_null_predictions = (argmax_predictions !=
+        # True Negatives: correct non-positive predsictions.
+        correct_null_predsictions = (argmax_predsictions !=
                                     self._positive_label).float() * negative_label_mask
-        self._true_negatives += (correct_null_predictions.float() * mask).sum()
+        self._true_negatives += (correct_null_predsictions.float() * mask).sum()
 
-        # True Positives: correct positively labeled predictions.
-        correct_non_null_predictions = (argmax_predictions ==
+        # True Positives: correct positively labeled predsictions.
+        correct_non_null_predsictions = (argmax_predsictions ==
                                         self._positive_label).float() * positive_label_mask
-        self._true_positives += (correct_non_null_predictions * mask).sum()
+        self._true_positives += (correct_non_null_predsictions * mask).sum()
 
-        # False Negatives: incorrect negatively labeled predictions.
-        incorrect_null_predictions = (argmax_predictions !=
+        # False Negatives: incorrect negatively labeled predsictions.
+        incorrect_null_predsictions = (argmax_predsictions !=
                                       self._positive_label).float() * positive_label_mask
-        self._false_negatives += (incorrect_null_predictions * mask).sum()
+        self._false_negatives += (incorrect_null_predsictions * mask).sum()
 
-        # False Positives: incorrect positively labeled predictions
-        incorrect_non_null_predictions = (argmax_predictions ==
+        # False Positives: incorrect positively labeled predsictions
+        incorrect_non_null_predsictions = (argmax_predsictions ==
                                           self._positive_label).float() * negative_label_mask
-        self._false_positives += (incorrect_non_null_predictions * mask).sum()
+        self._false_positives += (incorrect_non_null_predsictions * mask).sum()
 
     def get_metric(self, reset: bool = False):
         """
@@ -184,3 +184,26 @@ class F1Measure():
         self._true_negatives = 0.0
         self._false_positives = 0.0
         self._false_negatives = 0.0
+
+
+class Metrics():
+
+    def __init__(self, metrics=[CategoricalAccuracy(), F1Measure()]):
+        self.metrics = metrics
+
+    def count(self, preds, targs):
+        for metric in self.metrics:
+            metric(preds, targs)
+
+    def report(self, reset=False):
+        report = []
+        for metric in self.metrics:
+            _ = metric.get_metric(reset=False)
+            if isinstance(metric, CategoricalAccuracy): report.append(('acc', _))
+            elif isinstance(metric, F1Measure): report += [('rec', _[0]), ('pre', _[1]), ('f1', _[2])]
+            else: raise NotImplementedError
+        return report
+
+    def reset(self):
+        for metric in self.metrics:
+            metric.reset()

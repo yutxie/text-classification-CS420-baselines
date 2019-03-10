@@ -8,16 +8,16 @@ import torch
 import models
 
 from train import train
-from evaluate import evaluate
 from dataset import Task
+from evaluate import evaluate
 
 parser = argparse.ArgumentParser(description='Text Classification')
 
 # environment
-parser.add_argument('--device',         type=int,   default=1,      help='gpu device id, -1 if cpu')
+parser.add_argument('--device',         type=int,   default=-1,     help='gpu device id, -1 if cpu')
 # log
-parser.add_argument('--log_every',      type=int,   default=100,    help='log train how many every passes')
-parser.add_argument('--eval_every',     type=int,   default=100,    help='evaluate how many every passes')
+parser.add_argument('--log_every',      type=int,   default=1,    help='log train how many every passes')
+parser.add_argument('--eval_every',     type=int,   default=1,    help='evaluate how many every passes')
 parser.add_argument('--save_every',     type=int,   default=1000,   help='save model how many every passes')
 # train
 parser.add_argument('--n_epochs',       type=int,   default=500,    help='how many epochs')
@@ -28,7 +28,6 @@ parser.add_argument('--data_dir',       type=str,   default='data/')
 parser.add_argument('--run_dir',        type=str,   default='run/')
 # model
 parser.add_argument('--model',          type=str,   default='BiLSTM')
-parser.add_argument('--vocab_size',     type=int,   default=200000)
 parser.add_argument('--d_feature',      type=int,   default=300)
 parser.add_argument('--d_hidden',       type=int,   default=300)
 parser.add_argument('--n_layers',       type=int,   default=1)
@@ -60,7 +59,6 @@ if __name__ == "__main__":
     # model
     Model = getattr(models, args.model)
     model = Model(args, task)
-    model.to(args.device)
 
     # train
     train(args, model, task)

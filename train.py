@@ -5,32 +5,33 @@ import logging as log
 import torch
 import torch.nn.functional as F
 
+from torchtext.data import BucketIterator
 from torch.utils.data import DataLoader
 from tensorboardX import SummaryWriter
 
+from metrics import Metrics
 from evaluate import evaluate
 
 
 def train(args, model, task):
 
+    metrics = Metrics()
     writer = SummaryWriter(os.path.join(args.run_dir, 'tensorboard'))
     optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=args.lr)
     log.info('Start to train')
 
     n_passes = 0
     for epoch in range(args.n_epochs):
-
-        data_loader = DataLoader(
+        data_iter = BucketIterator(
             task.train_set,
             args.batch_size,
+            device=args.device,
             shuffle=True,
-            collate_fn=task.collate_fn
         )
 
-        for batch in data_loader:
-            inputs, targs = batch
-            # inputs = inputs.to(args.device)
-            targs = targs.to(args.device)
+        for batch in data_iter:
+            texts, targs = batch.text, batch.targ
+            inputs = texts if args.model == 'BiLSTM' else None
 
             model.train()
             preds = model(inputs)
@@ -39,15 +40,15 @@ def train(args, model, task):
             loss.backward()
             optimizer.step()
 
-            task.train_set.metrics_count(preds, targs)
+            metrics.count(preds, targs)
             n_passes += 1
 
             # log train
             if n_passes % args.log_every == 0:
-                metrics = task.train_set.metrics_report(reset=True)
-                metrics += [('loss', loss.item())]
-                writer.add_scalars('train', dict(metrics), n_passes)
-                log.info('Pass #%i train: %s' % (n_passes, str(metrics)))
+                report = metrics.report(reset=True)
+                report += [('loss', loss.item())]
+                writer.add_scalars('train', dict(report), n_passes)
+                log.info('Pass #%i train: %s' % (n_passes, str(report)))
 
             # save model
             if n_passes % args.save_every == 0:
