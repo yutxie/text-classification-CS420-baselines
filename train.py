@@ -23,15 +23,21 @@ def train(args, model, task):
     n_passes = 0
     for epoch in range(args.n_epochs):
         data_iter = BucketIterator(
+        # data_loader = DataLoader(
             task.train_set,
             args.batch_size,
+            # collate_fn=task.collate_fn,
             device=args.device,
             shuffle=True,
         )
 
         for batch in data_iter:
+        # for batch in data_loader:
             texts, targs = batch.text, batch.targ
             inputs = texts if args.model == 'BiLSTM' else None
+            # texts, targs = batch
+            # inputs, targs = batch
+            # targs = targs.to(args.device)
 
             model.train()
             preds = model(inputs)
@@ -51,8 +57,8 @@ def train(args, model, task):
                 log.info('Pass #%i train: %s' % (n_passes, str(report)))
 
             # save model
-            if n_passes % args.save_every == 0:
-                torch.save(model.state_dict(), os.path.join(args.run_dir, 'params_%i.model' % n_passes))
+            # if n_passes % args.save_every == 0:
+            #     torch.save(model.state_dict(), os.path.join(args.run_dir, 'params_%i.model' % n_passes))
 
             # evaluate
             if n_passes % args.eval_every == 0:

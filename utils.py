@@ -18,26 +18,6 @@ def sent_tokenize(sent, se=False):
     if se: sent = [SOS_TOK] + sent + [EOS_TOK]
     return sent
 
-# def build_vocab(corpus, vocab_size):
-#     log.info("Start to build vocab")
-
-#     # count words
-#     word2freq = defaultdict(int)
-#     for sent in corpus:
-#         for word in sent:
-#             word2freq[word] += 1
-#     log.info("Finished counting words")
-
-#     # build vocab
-#     words_by_freq = [(word, freq) for word, freq in word2freq.items()]
-#     words_by_freq.sort(key=lambda x: x[1], reverse=True)
-#     vocab_size = min(vocab_size, len(words_by_freq))
-#     vocab = [word for word, _ in words_by_freq[:vocab_size]]
-#     word2idx = {word: idx for idx, word in enumerate(vocab)}
-
-#     log.info("Finished building a vocab of size %i" % vocab_size)
-#     return vocab, word2idx
-
 def calc_tfidf_matrix(corpus, max_features, stop_words='english'):
     corpus = [' '.join(sent) for sent in corpus]
     vectorizer = CountVectorizer(
@@ -56,7 +36,7 @@ def calc_tfidf_matrix(corpus, max_features, stop_words='english'):
 def load_word_vector(data_dir, d_feature):
     word2idx = {}
     vectors = []
-    with open(os.path.join(data_dir, 'sgns.sogou.word'), 'r', encoding='utf-8') as f:
+    with open(os.path.join(data_dir, 'sgns.weibo.word'), 'r', encoding='utf-8') as f:
         vocab_size, dim = map(int, f.readline().strip().split(' '))
         assert dim == d_feature
         for idx in range(vocab_size):

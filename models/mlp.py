@@ -20,7 +20,7 @@ class MLP(nn.Module):
         self.to(self.device)
 
     def forward(self, x):
-        x.to(self.device)
+        x = x.to(self.device)
 
         x = self.linears(x)             # batch_size x d_hidden
         x = self.output(x)   # batch_size x n_classes

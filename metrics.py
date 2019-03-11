@@ -188,8 +188,8 @@ class F1Measure():
 
 class Metrics():
 
-    def __init__(self, metrics=[CategoricalAccuracy(), F1Measure()]):
-        self.metrics = metrics
+    def __init__(self):
+        self.metrics = [CategoricalAccuracy(), F1Measure()]
 
     def count(self, preds, targs):
         for metric in self.metrics:

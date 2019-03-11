@@ -37,7 +37,7 @@ class BiLSTM(nn.Module):
             x: batch_size x seq_len
             task_idx: int
         '''
-        x.to(self.device)
+        x = x.to(self.device)
         batch_size = x.shape[0]
         x = self.embedding(x)
         x, (h_n, c_n) = self.bilstm(x)  # n_layers * 2 x batch_size x d_hidden

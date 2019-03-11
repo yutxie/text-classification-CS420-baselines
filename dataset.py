@@ -22,6 +22,7 @@ class SeqTask():
             eos_token='<EOS>',
             lower=True,
             tokenize=sent_tokenize,
+            pad_first=True,
             batch_first=True
         )
         targ_field = data.Field(
@@ -30,23 +31,25 @@ class SeqTask():
             is_target=True
         )
 
-        train_data, test_data = data.TabularDataset.splits(
-            path=args.data_dir,
-            train='train.txt',
-            test='test.txt',
+        self.train_set = data.TabularDataset(
+            path=os.path.join(args.data_dir, 'train_shuffle.txt'),
             format='tsv',
             fields=[('targ', targ_field), ('text', text_field)])
-        text_field.build_vocab(train_data)
+        self.test_set = data.TabularDataset(
+            path=os.path.join(args.data_dir, 'test_shuffle.txt'),
+            format='tsv',
+            fields=[('targ', targ_field), ('text', text_field)])
+        text_field.build_vocab(self.train_set)
         
-        self.train_set = train_data
-        self.test_set = test_data
-
         self.vocab = text_field.vocab
 
         word2idx, vectors = load_word_vector(args.data_dir, args.d_feature)
         self.vocab.set_vectors(word2idx, vectors, dim=args.d_feature)
 
 class NonSeqTask():
+
+    def __init__(self, args):
+        self.n_classes = 2
 
         # load data
         corpus = []
@@ -55,54 +58,53 @@ class NonSeqTask():
         #     stop_words = [line.strip() for line in stop_words]
         #     stop_words = []
         for split in ['train', 'test']:
-            file_name = split + '.txt'
-            with open(os.path.join(args.data_dir, file_name), 'r', encoding='utf-8') as f:
-                lines = f.readlines()                               # targ \t text
+            file_name = split + '_shuffle.txt'
+            with open(os.path.join(args.data_dir, file_name), 'r') as f:
+                lines = f.readlines()                                       # targ \t text
                 lines = [line.strip().split('\t') for line in lines]        # [[targ, text], ...]
-                log.info('Finished loading file %s' % file_name)
-            texts = [sent_tokenize(text, se=args.model!='MLP') for targ, text in lines]   # [[word0, word1], ...]
+                print('Finished loading file %s' % file_name)
+            texts = [sent_tokenize(text) for targ, text in lines]           # [[word0, word1], ...]
             # texts = [[word for word in sent if word not in stop_words] for sent in texts]
-            targs = [int(targ) for targ, text in lines]                  # [targs]
+            targs = [int(targ) for targ, text in lines] # [targs]
+            exec(split + '_texts = texts')
+            exec(split + '_targs = targs')
             corpus += texts
-            setattr(self, split + '_texts', texts)
-            setattr(self, split + '_targs', targs)
 
         class Dataset(data.Dataset):
-            def __init__(self, tfidf, texts, targs):
-                self.metrics = [CategoricalAccuracy(), F1Measure()]
-
-                self.tfidf = tfidf
-                self.texts = texts
+            def __init__(self, inputs, targs):
+                self.inputs = inputs
                 self.targs = targs
 
             def __len__(self):
-                assert self.tfidf is None or self.tfidf.shape[0] == len(self.targs)
-                assert len(self.texts) == len(self.targs)
-                return len(self.targs)
+                return self.inputs.shape[0]
 
             def __getitem__(self, index):
-                return self.tfidf[index], self.texts, self.targs[index]
+                if self.targs is None: return self.inputs[index], None
+                else: return self.inputs[index], self.targs[index]
 
         # form dataset
         tfidf, word_list = calc_tfidf_matrix(corpus, args.d_feature, stop_words=None)
         args.d_feature = len(word_list)
         for split in ['train', 'test']:
-            texts = getattr(self, split + '_texts')
-            targs = getattr(self, split + '_targs')
-            split_size = len(targs)
+            texts = eval(split + '_texts')
+            targs = eval(split + '_targs')
+            split_size = len(texts)
             inputs = tfidf[:split_size]
             tfidf = tfidf[split_size:]
-            setattr(self, split + '_set', Dataset(inputs, texts, targs))
+            setattr(self, split + '_set', Dataset(inputs, targs))
         log.info('Finished building datasets')
+
+        print(len(self.train_set), len(self.test_set))
 
     def collate_fn(self, batch):
         inputs, targs = [], []
         for x, y in batch:
             x = torch.tensor(x.toarray(), dtype=torch.float)
-            y = torch.tensor(y, dtype=torch.long)
+            if y is not None: y = torch.tensor(y, dtype=torch.long)
             inputs.append(x)
             targs.append(y)
 
         inputs = torch.cat(inputs)
-        targs = torch.stack(targs)
+        if targs[0] is not None: targs = torch.stack(targs)
+        else: targs = None
         return inputs, targs
