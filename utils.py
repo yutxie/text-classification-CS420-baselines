@@ -13,6 +13,7 @@ def sent_tokenize(sent, se=False):
     SOS_TOK, EOS_TOK = '<SOS>', '<EOS>'
     if isinstance(sent, str):
         sent = jieba.lcut(sent)
+        # sent = [sent[i] for i in range(len(sent))]
     elif isinstance(sent, list):
         assert isinstance(sent[0], str), "Invalid sentence found!"
     if se: sent = [SOS_TOK] + sent + [EOS_TOK]

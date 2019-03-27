@@ -40,8 +40,8 @@ class SeqTask():
             format='tsv',
             fields=[('targ', targ_field), ('text', text_field)])
         text_field.build_vocab(self.train_set)
-        
         self.vocab = text_field.vocab
+        log.info('Finished building a vocab of size %i' % len(self.vocab))
 
         word2idx, vectors = load_word_vector(args.data_dir, args.d_feature)
         self.vocab.set_vectors(word2idx, vectors, dim=args.d_feature)

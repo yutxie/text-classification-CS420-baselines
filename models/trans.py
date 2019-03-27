@@ -5,7 +5,9 @@ import torch.autograd as autograd
 
 import logging as log
 
-class BiLSTM(nn.Module):
+from .modules import TransformerEncoder
+
+class Transformer(nn.Module):
 
     def __init__(self, args, task):
         super().__init__()
@@ -14,17 +16,17 @@ class BiLSTM(nn.Module):
         self.embedding = nn.Embedding(
             len(self.vocab),
             args.d_feature,
-            _weight=self.vocab.vectors
+            # _weight=self.vocab.vectors
         )
-        self.bilstm = nn.LSTM(
-            args.d_feature,
-            args.d_hidden,
-            args.n_layers,
-            batch_first=True,
-            bidirectional=True
+        self.trans = TransformerEncoder(
+            dimension=args.d_feature,
+            n_heads=4,
+            hidden=args.d_hidden,
+            num_layers=args.n_layers,
+            dropout=args.dropout
         )
         self.output = nn.Linear(
-            args.d_hidden * args.n_layers * 2,
+            args.d_hidden * (args.n_layers + 1),
             task.n_classes
         )
 
@@ -40,15 +42,17 @@ class BiLSTM(nn.Module):
         x = x.to(self.device)
         batch_size = x.shape[0]
         x = self.embedding(x)
-        x, (h_n, c_n) = self.bilstm(x)  # n_layers * 2 x batch_size x d_hidden
-        h_n = h_n.transpose(0, 1).contiguous().view(batch_size, -1) # batch_size x d_hidden * n_layers * 2
-        x = self.output(h_n)    # batch_size x n_classes
+        x = self.trans(x)
+        x = [x[i][:,-1,:] for i in range(len(x))]
+        x = torch.cat(x, dim=1)
+        x = self.output(x)    # batch_size x n_classes
         return torch.softmax(x, dim=1) # batch_size x n_classes
 
     def seq2vec(self, x):
         x = x.to(self.device)
         batch_size = x.shape[0]
         x = self.embedding(x)
-        x, (h_n, c_n) = self.bilstm(x)  # n_layers * 2 x batch_size x d_hidden
-        h_n = h_n.transpose(0, 1).contiguous().view(batch_size, -1) # batch_size x d_hidden * n_layers * 2
-        return h_n
+        x = self.trans(x)
+        x = [x[i][:,-1,:] for i in range(len(x))]
+        x = torch.cat(x, dim=1)
+        return x

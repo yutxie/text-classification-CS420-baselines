@@ -5,7 +5,7 @@ import logging as log
 import torch
 import torch.nn.functional as F
 
-from torchtext.data import BucketIterator
+from torchtext.data import Iterator
 from torch.utils.data import DataLoader
 from tensorboardX import SummaryWriter
 
@@ -22,7 +22,7 @@ def train(args, model, task):
 
     n_passes = 0
     for epoch in range(args.n_epochs):
-        data_iter = BucketIterator(
+        data_iter = Iterator(
         # data_loader = DataLoader(
             task.train_set,
             args.batch_size,
@@ -34,7 +34,7 @@ def train(args, model, task):
         for batch in data_iter:
         # for batch in data_loader:
             texts, targs = batch.text, batch.targ
-            inputs = texts if args.model == 'BiLSTM' else None
+            inputs = texts if args.model != 'MLP' else None
             # texts, targs = batch
             # inputs, targs = batch
             # targs = targs.to(args.device)
