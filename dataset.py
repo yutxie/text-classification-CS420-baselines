@@ -22,7 +22,7 @@ class SeqTask():
             eos_token='<EOS>',
             lower=True,
             tokenize=sent_tokenize,
-            pad_first=True,
+            pad_first=False,
             batch_first=True
         )
         targ_field = data.Field(

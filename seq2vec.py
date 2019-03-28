@@ -26,10 +26,15 @@ def seq2vec(args, model, task):
         feats_list = []
         for batch in data_iter:
             inputs, targs = batch.text, batch.targ
-            feats = model.seq2vec(inputs)
+            if args.model == 'Seq2Seq':
+                feats, _, _ = model(inputs)
+                feats = feats[-1]
+            else:
+                feats = model.seq2vec(inputs)
             feats_list.append(feats)
         feats = torch.cat(feats_list, dim=0)
         feats = feats.detach().cpu().numpy()
+        print('feats shape', feats.shape)
 
         with open(os.path.join(args.data_dir, 'feats_%s' % split), 'wb') as f:
             pickle.dump(feats, f)
